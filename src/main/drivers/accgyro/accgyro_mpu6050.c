@@ -37,8 +37,6 @@
 #include "drivers/exti.h"
 #include "drivers/bus.h"
 
-#include "drivers/gyro_sync.h"
-
 #include "drivers/sensor.h"
 #include "drivers/accgyro/accgyro.h"
 #include "drivers/accgyro/accgyro_mpu.h"
@@ -75,7 +73,7 @@ static void mpu6050AccAndGyroInit(gyroDev_t *gyro)
 
         // Accel Sample Rate 1kHz
         // Gyroscope Output Rate =  1kHz when the DLPF is enabled
-        busWrite(gyro->busDev, MPU_RA_SMPLRT_DIV, gyroMPU6xxxGetDividerDrops(gyro));
+        busWrite(gyro->busDev, MPU_RA_SMPLRT_DIV, gyro->sampleRateDenom - 1);
         delayMicroseconds(15);
 
         // Accel and Gyro DLPF Setting
@@ -102,6 +100,9 @@ static void mpu6050AccAndGyroInit(gyroDev_t *gyro)
     }
 
     busSetSpeed(gyro->busDev, BUS_SPEED_FAST);
+
+    // Calculate gyro sample rate interval
+    gyro->sampleRateIntervalUs = ((gyro->lpf == 0) ? 125 : 1000) * gyro->sampleRateDenom;
 }
 
 static void mpu6050AccInit(accDev_t *acc)

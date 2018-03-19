@@ -77,13 +77,13 @@ void mpuIntExtiInit(gyroDev_t *gyro)
     IOInit(gyro->busDev->irqPin, OWNER_MPU, RESOURCE_EXTI, 0);
 
     EXTIHandlerInit(&gyro->exti, mpuIntExtiHandler);
-    EXTIConfig(gyro->busDev->irqPin, &gyro->exti, NVIC_PRIO_MPU_INT_EXTI, IO_CONFIG(GPIO_MODE_INPUT,0,GPIO_NOPULL));   // TODO - maybe pullup / pulldown ?
+    EXTIConfig(gyro->busDev->irqPin, &gyro->exti, NVIC_PRIO_GYRO_INT_EXTI, IO_CONFIG(GPIO_MODE_INPUT,0,GPIO_NOPULL));   // TODO - maybe pullup / pulldown ?
 #else
     IOInit(gyro->busDev->irqPin, OWNER_MPU, RESOURCE_EXTI, 0);
     IOConfigGPIO(gyro->busDev->irqPin, IOCFG_IN_FLOATING);
 
     EXTIHandlerInit(&gyro->exti, mpuIntExtiHandler);
-    EXTIConfig(gyro->busDev->irqPin, &gyro->exti, NVIC_PRIO_MPU_INT_EXTI, EXTI_Trigger_Rising);
+    EXTIConfig(gyro->busDev->irqPin, &gyro->exti, NVIC_PRIO_GYRO_INT_EXTI, EXTI_Trigger_Rising);
     EXTIEnable(gyro->busDev->irqPin, true);
 #endif
 #endif

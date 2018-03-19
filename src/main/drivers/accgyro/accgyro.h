@@ -32,28 +32,23 @@
 #define GYRO_LPF_5HZ        6
 #define GYRO_LPF_NONE       7
 
-typedef enum {
-    GYRO_RATE_1_kHz,
-    GYRO_RATE_8_kHz,
-    GYRO_RATE_32_kHz,
-} gyroRateKHz_e;
-
 typedef struct gyroDev_s {
     busDevice_t * busDev;
     sensorGyroInitFuncPtr initFn;                       // initialize function
     sensorGyroReadFuncPtr readFn;                       // read 3 axis data function
     sensorGyroReadDataFuncPtr temperatureFn;            // read temperature if available
     sensorGyroInterruptStatusFuncPtr intStatusFn;
+    sensorGyroPrepareSampleRateFuncPtr prepareSampleRateFn;
     sensorGyroUpdateFuncPtr updateFn;
     extiCallbackRec_t exti;
     float scale;                                        // scalefactor
     int16_t gyroADCRaw[XYZ_AXIS_COUNT];
     int16_t gyroZero[XYZ_AXIS_COUNT];
-    uint8_t lpf;
     uint8_t imuSensorToUse;
-    gyroRateKHz_e gyroRateKHz;
-    uint8_t mpuDividerDrops;
+    uint8_t lpf;                                        // Configuration value: Hardware LPF setting
+    uint8_t sampleRateDenom;                            // Configuration value: Sample rate denominator
     volatile bool dataReady;
+    uint32_t sampleRateIntervalUs;                      // Gyro driver should set this to actual sampling rate as signaled by IRQ
     sensor_align_e gyroAlign;
 } gyroDev_t;
 

@@ -34,19 +34,20 @@
 
 #include "drivers/accgyro/accgyro.h"
 #include "drivers/accgyro/accgyro_mpu.h"
+#include "drivers/accgyro/accgyro_mpu3050.h"
 #include "drivers/accgyro/accgyro_mpu6000.h"
 #include "drivers/accgyro/accgyro_mpu6050.h"
 #include "drivers/accgyro/accgyro_mpu6500.h"
 #include "drivers/accgyro/accgyro_mpu9250.h"
 
-#include "drivers/accgyro/accgyro_adxl345.h"
-#include "drivers/accgyro/accgyro_bma280.h"
-#include "drivers/accgyro/accgyro_fake.h"
+#include "drivers/accgyro/accgyro_lsm303dlhc.h"
 #include "drivers/accgyro/accgyro_l3g4200d.h"
 #include "drivers/accgyro/accgyro_l3gd20.h"
-#include "drivers/accgyro/accgyro_lsm303dlhc.h"
+#include "drivers/accgyro/accgyro_adxl345.h"
 #include "drivers/accgyro/accgyro_mma845x.h"
-#include "drivers/accgyro/accgyro_mpu3050.h"
+#include "drivers/accgyro/accgyro_bma280.h"
+#include "drivers/accgyro/accgyro_bmi160.h"
+#include "drivers/accgyro/accgyro_fake.h"
 #include "drivers/logging.h"
 #include "drivers/sensor.h"
 
@@ -241,6 +242,22 @@ static bool accDetect(accDev_t *dev, accelerationSensor_e accHardwareToUse)
             dev->accAlign = ACC_MPU9250_ALIGN;
 #endif
             accHardware = ACC_MPU9250;
+            break;
+        }
+        /* If we are asked for a specific sensor - break out, otherwise - fall through and continue */
+        if (accHardwareToUse != ACC_AUTODETECT) {
+            break;
+        }
+        FALLTHROUGH;
+#endif
+
+#if defined(USE_ACC_BMI160)
+    case ACC_BMI160:
+        if (bmi160AccDetect(dev)) {
+#ifdef ACC_BMI160_ALIGN
+            dev->accAlign = ACC_BMI160_ALIGN;
+#endif
+            accHardware = ACC_BMI160;
             break;
         }
         /* If we are asked for a specific sensor - break out, otherwise - fall through and continue */

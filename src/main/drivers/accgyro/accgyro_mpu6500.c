@@ -28,7 +28,6 @@
 #include "drivers/time.h"
 #include "drivers/exti.h"
 #include "drivers/gpio.h"
-#include "drivers/gyro_sync.h"
 
 #include "drivers/sensor.h"
 #include "drivers/accgyro/accgyro.h"
@@ -85,9 +84,7 @@ static void mpu6500AccAndGyroInit(gyroDev_t *gyro)
     busWrite(dev, MPU_RA_PWR_MGMT_1, INV_CLK_PLL);
     delay(15);
 
-    const uint8_t raGyroConfigData = gyro->gyroRateKHz > GYRO_RATE_8_kHz ? (INV_FSR_2000DPS << 3 | FCB_3600_32) : (INV_FSR_2000DPS << 3 | FCB_DISABLED);
-
-    busWrite(dev, MPU_RA_GYRO_CONFIG, raGyroConfigData);
+    busWrite(dev, MPU_RA_GYRO_CONFIG, INV_FSR_2000DPS << 3 | FCB_DISABLED);
     delay(15);
 
     busWrite(dev, MPU_RA_ACCEL_CONFIG, INV_FSR_8G << 3);
@@ -96,7 +93,7 @@ static void mpu6500AccAndGyroInit(gyroDev_t *gyro)
     busWrite(dev, MPU_RA_CONFIG, gyro->lpf);
     delay(15);
 
-    busWrite(dev, MPU_RA_SMPLRT_DIV, gyroMPU6xxxGetDividerDrops(gyro)); // Get Divider
+    busWrite(dev, MPU_RA_SMPLRT_DIV, gyro->sampleRateDenom - 1); // Get Divider
     delay(100);
 
     // Data ready interrupt configuration
@@ -109,6 +106,9 @@ static void mpu6500AccAndGyroInit(gyroDev_t *gyro)
 #endif
 
     busSetSpeed(dev, BUS_SPEED_FAST);
+
+    // Calculate gyro sample rate interval
+    gyro->sampleRateIntervalUs = ((gyro->lpf == 0) ? 125 : 1000) * gyro->sampleRateDenom;
 }
 
 static bool mpu6500DeviceDetect(busDevice_t * dev)
