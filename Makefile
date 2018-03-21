@@ -766,6 +766,7 @@ endif
 
 STM32F10x_COMMON_SRC = \
             startup_stm32f10x_md_gcc.S \
+            drivers/accgyro/accgyro.c \
             drivers/adc_stm32f10x.c \
             drivers/bus_i2c_stm32f10x.c \
             drivers/dma.c \
@@ -779,6 +780,7 @@ STM32F10x_COMMON_SRC = \
 STM32F30x_COMMON_SRC = \
             startup_stm32f30x_md_gcc.S \
             target/system_stm32f30x.c \
+            drivers/accgyro/accgyro.c \
             drivers/adc_stm32f30x.c \
             drivers/bus_i2c_stm32f30x.c \
             drivers/dma.c \
