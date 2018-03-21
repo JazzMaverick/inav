@@ -29,6 +29,8 @@
 #include "build/debug.h"
 
 #include "common/axis.h"
+#include "common/maths.h"
+#include "common/utils.h"
 
 #include "drivers/system.h"
 #include "drivers/time.h"
@@ -38,7 +40,6 @@
 
 #include "drivers/sensor.h"
 #include "drivers/accgyro/accgyro.h"
-#include "drivers/accgyro/accgyro_mpu.h"
 #include "drivers/accgyro/accgyro_bmi160.h"
 
 #if defined(USE_GYRO_BMI160) || defined(USE_ACC_BMI160)
@@ -102,10 +103,27 @@ typedef struct __attribute__ ((__packed__)) bmi160ContextData_s {
     uint8_t     accRaw[6];
 } bmi160ContextData_t;
 
+STATIC_ASSERT(sizeof(bmi160ContextData_t) < BUS_SCRATCHPAD_MEMORY_SIZE, busDevice_scratchpad_memory_too_small);
+
+static const gyroFilterAndRateConfig_t gyroConfigs[] = {
+    { GYRO_LPF_256HZ,   3200,   { BMI160_BWP_NORMAL | BMI160_ODR_3200_Hz} },
+    { GYRO_LPF_256HZ,   1600,   { BMI160_BWP_NORMAL | BMI160_ODR_1600_Hz} },
+    { GYRO_LPF_256HZ,    800,   { BMI160_BWP_NORMAL | BMI160_ODR_800_Hz } },
+
+    { GYRO_LPF_188HZ,    800,   { BMI160_BWP_OSR2   | BMI160_ODR_800_Hz } },  // ODR = 800 Hz, LPF = 128 Hz
+    { GYRO_LPF_188HZ,    400,   { BMI160_BWP_NORMAL | BMI160_ODR_400_Hz } },  // ODR = 400 Hz, LPF = 137 Hz
+
+    { GYRO_LPF_98HZ,     800,   { BMI160_BWP_OSR4   | BMI160_ODR_800_Hz } },  // ODR = 800 Hz, LPF = 63 Hz
+    { GYRO_LPF_98HZ,     400,   { BMI160_BWP_OSR2   | BMI160_ODR_400_Hz } },  // ODR = 400 Hz, LPF = 68 Hz
+
+    { GYRO_LPF_42HZ,     800,   { BMI160_BWP_OSR4   | BMI160_ODR_800_Hz } },  // ODR = 800 Hz, LPF = 63 Hz
+    { GYRO_LPF_42HZ,     400,   { BMI160_BWP_OSR4   | BMI160_ODR_400_Hz } },  // ODR = 400 Hz, LPF = 34 Hz
+};
+
 static void bmi160AccAndGyroInit(gyroDev_t *gyro)
 {
     uint8_t value;
-    mpuIntExtiInit(gyro);
+    gyroIntExtiInit(gyro);
 
     busSetSpeed(gyro->busDev, BUS_SPEED_INITIALIZATION);
 
@@ -127,62 +145,10 @@ static void bmi160AccAndGyroInit(gyroDev_t *gyro)
     delay(1);
 
     // Figure out suitable filter configuration
-    if (gyro->lpf == GYRO_LPF_256HZ) {
-        switch (gyro->sampleRateDenom) {
-            case 1: // Invensense rate 8kHz   - Bosch N/A
-            case 2: // Invensense rate 4kHz   - Bosch 3.2kHz
-            case 3: // Invensense rate 2.7kHz - Bosch 3.2kHz
-                value = BMI160_BWP_NORMAL | BMI160_ODR_3200_Hz;     // ODR = 3.2 kHz, LPF = 890 Hz
-                gyro->sampleRateIntervalUs = 1000000 / 3200;
-                break;
+    const gyroFilterAndRateConfig_t * config = chooseGyroConfig(gyro->lpf, 1000000 / gyro->requestedSampleIntervalUs, &gyroConfigs[0], ARRAYLEN(gyroConfigs));
 
-            case 4: // Invensense rate 2kHz   - Bosch 1.6kHz
-            case 5: // Invensense rate 1.6kHz - Bosch 1.6kHz
-            case 6: // Invensense rate 1.3kHz - Bosch 1.6kHz
-                value = BMI160_BWP_NORMAL | BMI160_ODR_1600_Hz;     // ODR = 1.6 kHz, LPF = 524 Hz
-                gyro->sampleRateIntervalUs = 1000000 / 1600;
-                break;
-
-            case 7: // Invensense rate 1.1kHz - Bosch 800Hz
-            case 8: // Invensense rate 1kHz   - Bosch 800Hz
-            default:    // Fallback value
-                value = BMI160_BWP_NORMAL | BMI160_ODR_800_Hz;      // ODR = 0.8 kHz, LPF = 255 Hz
-                gyro->sampleRateIntervalUs = 1000000 / 800;
-                break;
-        }
-    }
-    else if (gyro->lpf == GYRO_LPF_188HZ) {
-        if (gyro->sampleRateDenom == 1) {
-            value = BMI160_BWP_OSR2 | BMI160_ODR_800_Hz;            // ODR = 800 Hz, LPF = 128 Hz
-            gyro->sampleRateIntervalUs = 1000000 / 800;
-        }
-        else {
-            value = BMI160_BWP_NORMAL | BMI160_ODR_400_Hz;          // ODR = 400 Hz, LPF = 137 Hz
-            gyro->sampleRateIntervalUs = 1000000 / 400;
-        }
-    }
-    else if (gyro->lpf == GYRO_LPF_98HZ) {
-        if (gyro->sampleRateDenom == 1) {
-            value = BMI160_BWP_OSR4 | BMI160_ODR_800_Hz;            // ODR = 800 Hz, LPF = 63 Hz
-            gyro->sampleRateIntervalUs = 1000000 / 800;
-        }
-        else {
-            value = BMI160_BWP_OSR2 | BMI160_ODR_400_Hz;            // ODR = 400 Hz, LPF = 68 Hz
-            gyro->sampleRateIntervalUs = 1000000 / 400;
-        }
-    }
-    else {
-        if (gyro->sampleRateDenom == 1) {
-            value = BMI160_BWP_OSR4 | BMI160_ODR_800_Hz;            // ODR = 800 Hz, LPF = 63 Hz
-            gyro->sampleRateIntervalUs = 1000000 / 800;
-        }
-        else {
-            value = BMI160_BWP_OSR4 | BMI160_ODR_400_Hz;            // ODR = 400 Hz, LPF = 34 Hz
-            gyro->sampleRateIntervalUs = 1000000 / 400;
-        }
-    }
-
-    busWrite(gyro->busDev, BMI160_REG_GYR_CONF, value);
+    gyro->sampleRateIntervalUs = 1000000 / config->gyroRateHz;
+    busWrite(gyro->busDev, BMI160_REG_GYR_CONF, config->gyroConfigValues[0]);
     delay(1);
 
     busWrite(gyro->busDev, BMI160_REG_ACC_RANGE, BMI160_RANGE_8G);
@@ -301,7 +267,7 @@ bool bmi160GyroDetect(gyroDev_t *gyro)
 
     gyro->initFn = bmi160AccAndGyroInit;
     gyro->readFn = bmi160GyroReadScratchpad;
-    gyro->intStatusFn = mpuCheckDataReady;
+    gyro->intStatusFn = gyroCheckDataReady;
     gyro->temperatureFn = NULL;
     gyro->scale = 1.0f / 16.4f;     // 16.4 dps/lsb scalefactor
 

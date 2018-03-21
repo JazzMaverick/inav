@@ -64,21 +64,20 @@ static void mpu3050Init(gyroDev_t *gyro)
 {
     bool ack;
     busDevice_t * busDev = gyro->busDev;
+    const gyroFilterAndRateConfig_t * config = mpuChooseGyroConfig(gyro->lpf, 1000000 / gyro->requestedSampleIntervalUs);
+    gyro->sampleRateIntervalUs = 1000000 / config->gyroRateHz;
 
     delay(25); // datasheet page 13 says 20ms. other stuff could have been running meanwhile. but we'll be safe
 
-    ack = busWrite(busDev, MPU3050_SMPLRT_DIV, gyro->sampleRateDenom - 1);
+    ack = busWrite(busDev, MPU3050_SMPLRT_DIV, config->gyroConfigValues[1]);
     if (!ack) {
         failureMode(FAILURE_ACC_INIT);
     }
 
-    busWrite(busDev, MPU3050_DLPF_FS_SYNC, MPU3050_FS_SEL_2000DPS | gyro->lpf);
+    busWrite(busDev, MPU3050_DLPF_FS_SYNC, MPU3050_FS_SEL_2000DPS | config->gyroConfigValues[0]);
     busWrite(busDev, MPU3050_INT_CFG, 0);
     busWrite(busDev, MPU3050_USER_CTRL, MPU3050_USER_RESET);
     busWrite(busDev, MPU3050_PWR_MGM, MPU3050_CLK_SEL_PLL_GX);
-
-    // Calculate gyro sample rate interval
-    gyro->sampleRateIntervalUs = ((gyro->lpf == 0) ? 125 : 1000) * gyro->sampleRateDenom;
 }
 
 static bool mpu3050GyroRead(gyroDev_t *gyro)
@@ -130,7 +129,7 @@ bool mpu3050Detect(gyroDev_t *gyro)
 
     gyro->initFn = mpu3050Init;
     gyro->readFn = mpu3050GyroRead;
-    gyro->intStatusFn = mpuCheckDataReady;
+    gyro->intStatusFn = gyroCheckDataReady;
     gyro->scale = 1.0f / 16.4f;     // 16.4 dps/lsb scalefactor
 
     return true;

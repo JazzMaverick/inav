@@ -68,7 +68,10 @@ bool mpu9250AccDetect(accDev_t *acc)
 static void mpu9250AccAndGyroInit(gyroDev_t *gyro)
 {
     busDevice_t * dev = gyro->busDev;
-    mpuIntExtiInit(gyro);
+    const gyroFilterAndRateConfig_t * config = mpuChooseGyroConfig(gyro->lpf, 1000000 / gyro->requestedSampleIntervalUs);
+    gyro->sampleRateIntervalUs = 1000000 / config->gyroRateHz;
+
+    gyroIntExtiInit(gyro);
 
     busSetSpeed(dev, BUS_SPEED_INITIALIZATION);
 
@@ -90,10 +93,10 @@ static void mpu9250AccAndGyroInit(gyroDev_t *gyro)
     busWrite(dev, MPU_RA_ACCEL_CONFIG, INV_FSR_8G << 3);
     delay(15);
 
-    busWrite(dev, MPU_RA_CONFIG, gyro->lpf);
+    busWrite(dev, MPU_RA_CONFIG, config->gyroConfigValues[0]);
     delay(15);
 
-    busWrite(dev, MPU_RA_SMPLRT_DIV, gyro->sampleRateDenom - 1);
+    busWrite(dev, MPU_RA_SMPLRT_DIV, config->gyroConfigValues[1]);
     delay(100);
 
     // Data ready interrupt configuration
@@ -161,7 +164,7 @@ bool mpu9250GyroDetect(gyroDev_t *gyro)
 
     gyro->initFn = mpu9250AccAndGyroInit;
     gyro->readFn = mpuGyroReadScratchpad;
-    gyro->intStatusFn = mpuCheckDataReady;
+    gyro->intStatusFn = gyroCheckDataReady;
     gyro->temperatureFn = mpuTemperatureReadScratchpad;
     gyro->scale = 1.0f / 16.4f;     // 16.4 dps/lsb scalefactor
 

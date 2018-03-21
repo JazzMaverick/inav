@@ -58,7 +58,10 @@ static bool mpu6050InitDone = false;
 
 static void mpu6050AccAndGyroInit(gyroDev_t *gyro)
 {
-    mpuIntExtiInit(gyro);
+    const gyroFilterAndRateConfig_t * config = mpuChooseGyroConfig(gyro->lpf, 1000000 / gyro->requestedSampleIntervalUs);
+    gyro->sampleRateIntervalUs = 1000000 / config->gyroRateHz;
+
+    gyroIntExtiInit(gyro);
 
     busSetSpeed(gyro->busDev, BUS_SPEED_INITIALIZATION);
 
@@ -73,11 +76,11 @@ static void mpu6050AccAndGyroInit(gyroDev_t *gyro)
 
         // Accel Sample Rate 1kHz
         // Gyroscope Output Rate =  1kHz when the DLPF is enabled
-        busWrite(gyro->busDev, MPU_RA_SMPLRT_DIV, gyro->sampleRateDenom - 1);
+        busWrite(gyro->busDev, MPU_RA_SMPLRT_DIV, config->gyroConfigValues[1]);
         delayMicroseconds(15);
 
         // Accel and Gyro DLPF Setting
-        busWrite(gyro->busDev, MPU_RA_CONFIG, gyro->lpf);
+        busWrite(gyro->busDev, MPU_RA_CONFIG, config->gyroConfigValues[0]);
         delayMicroseconds(1);
 
         // Gyro +/- 2000 DPS Full Scale
@@ -100,9 +103,6 @@ static void mpu6050AccAndGyroInit(gyroDev_t *gyro)
     }
 
     busSetSpeed(gyro->busDev, BUS_SPEED_FAST);
-
-    // Calculate gyro sample rate interval
-    gyro->sampleRateIntervalUs = ((gyro->lpf == 0) ? 125 : 1000) * gyro->sampleRateDenom;
 }
 
 static void mpu6050AccInit(accDev_t *acc)
@@ -210,7 +210,7 @@ bool mpu6050GyroDetect(gyroDev_t *gyro)
 
     gyro->initFn = mpu6050AccAndGyroInit;
     gyro->readFn = mpuGyroReadScratchpad;
-    gyro->intStatusFn = mpuCheckDataReady;
+    gyro->intStatusFn = gyroCheckDataReady;
     gyro->temperatureFn = mpuTemperatureReadScratchpad;
     gyro->scale = 1.0f / 16.4f;     // 16.4 dps/lsb scalefactor
 

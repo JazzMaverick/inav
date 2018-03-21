@@ -21,7 +21,6 @@
 #include "common/axis.h"
 #include "drivers/exti.h"
 #include "drivers/sensor.h"
-#include "drivers/accgyro/accgyro_mpu.h"
 
 #define GYRO_LPF_256HZ      0
 #define GYRO_LPF_188HZ      1
@@ -32,13 +31,18 @@
 #define GYRO_LPF_5HZ        6
 #define GYRO_LPF_NONE       7
 
+typedef struct {
+    uint8_t gyroLpf;
+    uint16_t gyroRateHz;
+    uint8_t gyroConfigValues[2];
+} gyroFilterAndRateConfig_t;
+
 typedef struct gyroDev_s {
     busDevice_t * busDev;
     sensorGyroInitFuncPtr initFn;                       // initialize function
     sensorGyroReadFuncPtr readFn;                       // read 3 axis data function
     sensorGyroReadDataFuncPtr temperatureFn;            // read temperature if available
     sensorGyroInterruptStatusFuncPtr intStatusFn;
-    sensorGyroPrepareSampleRateFuncPtr prepareSampleRateFn;
     sensorGyroUpdateFuncPtr updateFn;
     extiCallbackRec_t exti;
     float scale;                                        // scalefactor
@@ -46,7 +50,7 @@ typedef struct gyroDev_s {
     int16_t gyroZero[XYZ_AXIS_COUNT];
     uint8_t imuSensorToUse;
     uint8_t lpf;                                        // Configuration value: Hardware LPF setting
-    uint8_t sampleRateDenom;                            // Configuration value: Sample rate denominator
+    uint32_t requestedSampleIntervalUs;                 // Requested sample interval
     volatile bool dataReady;
     uint32_t sampleRateIntervalUs;                      // Gyro driver should set this to actual sampling rate as signaled by IRQ
     sensor_align_e gyroAlign;
@@ -61,3 +65,7 @@ typedef struct accDev_s {
     uint8_t imuSensorToUse;
     sensor_align_e accAlign;
 } accDev_t;
+
+const gyroFilterAndRateConfig_t * chooseGyroConfig(uint8_t desiredLpf, uint16_t desiredRateHz, const gyroFilterAndRateConfig_t * configs, int count);
+void gyroIntExtiInit(struct gyroDev_s *gyro);
+bool gyroCheckDataReady(struct gyroDev_s *gyro);

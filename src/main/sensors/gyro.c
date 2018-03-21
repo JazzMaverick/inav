@@ -103,7 +103,6 @@ PG_RESET_TEMPLATE(gyroConfig_t, gyroConfig,
     .gyroMovementCalibrationThreshold = 32,
     .looptime = 1000,
     .gyroSync = 0,
-    .gyroSyncDenominator = 1,
     .gyro_to_use = 0,
     .gyro_soft_notch_hz_1 = 0,
     .gyro_soft_notch_cutoff_1 = 1,
@@ -255,7 +254,7 @@ bool gyroInit(void)
 
     // Driver initialisation
     gyroDev0.lpf = gyroConfig()->gyro_lpf;
-    gyroDev0.sampleRateDenom = gyroConfig()->gyroSync ? gyroConfig()->gyroSyncDenominator : 1;
+    gyroDev0.requestedSampleIntervalUs = gyroConfig()->looptime;
     gyroDev0.sampleRateIntervalUs = gyroConfig()->looptime;
     gyroDev0.initFn(&gyroDev0);
 
