@@ -49,7 +49,7 @@
 
 #define USE_BARO
 #define USE_BARO_BMP280
-#define BARO_SPI_BUS            BUS_SPI3
+#define BMP280_SPI_BUS          BUS_SPI3
 #define BMP280_CS_PIN           PB8
 
 //#define USE_PITOT_MS4525
