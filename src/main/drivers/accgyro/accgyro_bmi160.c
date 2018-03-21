@@ -141,7 +141,7 @@ static void bmi160AccAndGyroInit(gyroDev_t *gyro)
     }
 
     // Set ranges and ODR
-    busWrite(gyro->busDev, BMI160_REG_ACC_CONF, BMI160_BWP_OSR4 | BMI160_ODR_400_Hz);
+    busWrite(gyro->busDev, BMI160_REG_ACC_CONF, BMI160_BWP_OSR4 | BMI160_ODR_1600_Hz);
     delay(1);
 
     // Figure out suitable filter configuration

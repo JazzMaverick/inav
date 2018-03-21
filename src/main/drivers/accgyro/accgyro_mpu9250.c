@@ -109,9 +109,6 @@ static void mpu9250AccAndGyroInit(gyroDev_t *gyro)
 #endif
 
     busSetSpeed(dev, BUS_SPEED_FAST);
-
-    // Calculate gyro sample rate interval
-    gyro->sampleRateIntervalUs = ((gyro->lpf == 0) ? 125 : 1000) * gyro->sampleRateDenom;
 }
 
 static bool mpu9250DeviceDetect(busDevice_t * dev)
